@@ -61,6 +61,9 @@ def estimate_emotions(features: Dict[str, float]) -> Dict[str, float]:
 
 def dominant_emotion(emotions: Dict[str, float]) -> str:
     return max(emotions, key=emotions.get)
+@app.get("/")
+async def root():
+    return {"message": "Drawing Emotion Analysis Service alive"}
 
 @app.post("/analyze-drawing")
 async def analyze_drawing(file: UploadFile = File(...)):
