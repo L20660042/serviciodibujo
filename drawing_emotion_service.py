@@ -115,7 +115,7 @@ async def analyze_drawing(file: UploadFile = File(...)):
                 "features": features,
                 "emotions": emotions,
                 "dominant_emotion": dom_emotion,
-                "recommendation": recommendation
+                "advice": recommendation
             }
         }
 
