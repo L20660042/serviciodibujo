@@ -3,3 +3,5 @@ uvicorn[standard]
 numpy
 opencv-python-headless
 python-multipart
+httpx
+python-dotenv

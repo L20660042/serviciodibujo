@@ -4,6 +4,12 @@ import numpy as np
 import cv2
 from typing import Dict
 import logging
+import httpx
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="Drawing Emotion Analysis Service")
 
@@ -11,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=["*"],  # Ajustar en producción
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -101,13 +107,15 @@ async def analyze_drawing(file: UploadFile = File(...)):
 
         emotions = estimate_emotions(features)
         dom_emotion = dominant_emotion(emotions)
+        recommendation = await generate_ai_recommendation(dom_emotion, emotions)
 
         return {
             "success": True,
             "data": {
                 "features": features,
                 "emotions": emotions,
-                "dominant_emotion": dom_emotion
+                "dominant_emotion": dom_emotion,
+                "recommendation": recommendation
             }
         }
 
@@ -116,3 +124,44 @@ async def analyze_drawing(file: UploadFile = File(...)):
     except Exception as e:
         logging.exception("Unexpected error during analyze-drawing")
         raise HTTPException(status_code=500, detail="Internal error. Please try again later.")
+
+# 💡 Recomendación por IA vía Hugging Face
+HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
+HUGGINGFACE_MODEL = "tiiuae/falcon-7b-instruct"  # Puedes cambiarlo por otro compatible
+
+async def generate_ai_recommendation(dominant_emotion: str, emotions: Dict[str, float]) -> str:
+    secondary = sorted(
+        [(emo, val) for emo, val in emotions.items() if emo != dominant_emotion],
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    secondary_emotion = secondary[0][0] if secondary and secondary[0][1] > 0.2 else "ninguna emoción secundaria"
+
+    prompt = (
+        f"La emoción principal detectada en el dibujo es '{dominant_emotion}'. "
+        f"También se detectaron señales de: {secondary_emotion}. "
+        "¿Qué consejo emocional puedes dar basado en esto?"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {HUGGINGFACE_API_TOKEN}"
+    }
+
+    payload = {"inputs": prompt}
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}",
+                headers=headers,
+                json=payload
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result[0]["generated_text"] if isinstance(result, list) else result.get("generated_text", "")
+            else:
+                return "No se pudo generar una recomendación emocional en este momento."
+    except Exception as e:
+        logging.error(f"Error al obtener recomendación de IA: {str(e)}")
+        return "No se pudo generar una recomendación emocional en este momento."
