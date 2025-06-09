@@ -23,7 +23,7 @@ drawing_analysis_model = pipeline("image-classification", model="google/vit-base
 
 # Model for analysis response
 class EmotionAnalysisResponse(BaseModel):
-    emotions: dict
+    emotions: dict  # Expecting a dictionary for emotions
     dominant_emotion: str
     emotional_advice: str
 
@@ -59,17 +59,15 @@ async def analyze_drawing(file: UploadFile = File(...)):
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
 
-        # Log image size and format
-        logging.debug(f"Image size: {image.size}, Image format: {image.format}")
-
         # Analyze the image using the model
         analysis = drawing_analysis_model(image)
 
-        # Log analysis result
+        # Log the analysis result for debugging
         logging.debug(f"Analysis result: {analysis}")
 
-        emotions = analysis[0]["label"]
-        dominant_emotion = emotions[0]
+        # Assuming the model returns a list of labels, you need to structure it into a dictionary
+        emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
+        dominant_emotion = analysis[0]["label"]  # The label with the highest score
         emotional_advice = generate_advice(dominant_emotion)
 
         # Return the response
