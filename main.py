@@ -7,36 +7,36 @@ from transformers import pipeline
 import io
 from PIL import Image
 
-# Inicialización de FastAPI
+# Initializing FastAPI
 app = FastAPI()
 
-# Configuración de CORS
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permitir todos los orígenes
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Permitir todos los encabezados
+    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
-# Inicialización del pipeline para análisis de emociones
+# Initialize the emotion recognition pipeline
 emotion_recognition_pipeline = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
 
-# Modelos para el análisis de dibujo
-drawing_analysis_model = pipeline("image-classification", model="your-drawing-model")
+# Use a valid model identifier for image classification
+drawing_analysis_model = pipeline("image-classification", model="google/vit-base-patch16-224-in21k")
 
-# Define el modelo para respuestas del análisis
+# Model for analysis response
 class EmotionAnalysisResponse(BaseModel):
     emotions: dict
     dominant_emotion: str
     emotional_advice: str
 
-# Endpoint para verificar que el servicio está activo
+# Health check endpoint
 @app.get("/health")
 async def health():
     return {"model_loaded": True}
 
-# Función para generar el consejo emocional
+# Function to generate emotional advice based on the dominant emotion
 def generate_advice(dominant_emotion: str) -> str:
     advice = ""
     if dominant_emotion == "enojo":
@@ -55,20 +55,20 @@ def generate_advice(dominant_emotion: str) -> str:
         advice = "Parece que algo te sorprendió. ¡Tómate un tiempo para procesar lo que ocurrió!"
     return advice
 
-# Endpoint para analizar imágenes (dibujos)
+# Endpoint to analyze images (drawings)
 @app.post("/analyze-drawing", response_model=EmotionAnalysisResponse)
 async def analyze_drawing(file: UploadFile = File(...)):
-    # Leer la imagen
+    # Read the image
     image_data = await file.read()
     image = Image.open(io.BytesIO(image_data))
-    
-    # Convertir la imagen a un formato adecuado para el análisis
+
+    # Analyze the image using the model
     analysis = drawing_analysis_model(image)
-    
-    # Aquí se obtienen las emociones a partir del análisis
-    emotions = analysis['labels']  # Dependiendo de la estructura de la salida
-    dominant_emotion = emotions[0]  # Emoción dominante
-    emotional_advice = generate_advice(dominant_emotion)  # Generar consejo emocional
-    
-    # Formatear la respuesta
+
+    # Extract emotions and dominant emotion
+    emotions = analysis[0]["label"]  # Extracting the classification result (labels)
+    dominant_emotion = emotions[0]  # Dominant emotion
+    emotional_advice = generate_advice(dominant_emotion)  # Generate emotional advice
+
+    # Return the response
     return EmotionAnalysisResponse(emotions=emotions, dominant_emotion=dominant_emotion, emotional_advice=emotional_advice)

@@ -4,6 +4,6 @@ pydantic==1.10.7
 transformers==4.24.0
 torch==1.13.0
 Pillow==9.3.0
-scikit-learn==1.0.2  # Specify a compatible version of scikit-learn
-numpy==1.21.6  # Specify a compatible version of numpy
+scikit-learn==1.0.2
+numpy==1.21.6
 aiohttp==3.8.1

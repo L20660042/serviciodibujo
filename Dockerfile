@@ -1,20 +1,18 @@
-# Usar una imagen base de Python
+# Use the official Python 3.9 slim image as the base
 FROM python:3.9-slim
 
-# Establecer el directorio de trabajo
+# Set the working directory
 WORKDIR /app
 
-# Copiar los archivos del servicio al contenedor
+# Copy the contents of the local directory into the container
 COPY . /app
 
-# Instalar las dependencias necesarias
+# Install the necessary dependencies
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install numpy==1.21.6
-RUN pip install scikit-learn==1.0.2
 
-# Exponer el puerto
+# Expose the port on which the FastAPI app will run
 EXPOSE 8000
 
-# Comando para correr el servidor
+# Command to run the FastAPI app with Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
