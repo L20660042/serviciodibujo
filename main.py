@@ -32,14 +32,20 @@ MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
 
 @app.post("/analyze-drawing")
 async def analyze_drawing(file: UploadFile = File(...)):
-    # Verificar el tamaño del archivo
-    if file.size > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
-    
     try:
-        # Convertir el archivo de imagen
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes))
+        # Leer el contenido del archivo (esto también permite calcular el tamaño)
+        file_content = await file.read()
+
+        # Obtener el tamaño del archivo
+        file_size = len(file_content)
+
+        # Limitar el tamaño máximo del archivo
+        MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
+        if file_size > MAX_IMAGE_SIZE:
+            raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
+        
+        # Convertir la imagen
+        image = Image.open(io.BytesIO(file_content))
 
         # Procesar la imagen para detectar emociones usando el modelo ViT
         result = emotion_model(image)
@@ -62,6 +68,6 @@ async def analyze_drawing(file: UploadFile = File(...)):
                 "emotional_advice": emotional_advice,
             }
         }
-
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
