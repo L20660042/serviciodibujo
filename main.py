@@ -4,7 +4,14 @@ import io
 from transformers import pipeline
 
 app = FastAPI()
-
+# Habilitar CORS para permitir solicitudes desde otros dominios
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permitir todas las URLs, puedes cambiar "*" por un dominio específico si prefieres más restricción
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos HTTP (GET, POST, etc.)
+    allow_headers=["*"],  # Permitir todas las cabeceras
+)
 # Usar el modelo ViT (Vision Transformer) para clasificación de imágenes
 emotion_model = pipeline('image-classification', model="google/vit-base-patch16-224-in21k")
 
