@@ -4,26 +4,34 @@ import numpy as np
 import cv2
 from typing import Dict
 import logging
-import httpx
 import os
 from dotenv import load_dotenv
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 
 # Load environment variables
 load_dotenv()
 
+# Initialize FastAPI app
 app = FastAPI(title="Drawing Emotion Analysis Service")
 
+# Logging configuration
 logging.basicConfig(level=logging.DEBUG)
 
+# CORS middleware to allow requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ajustar en producción
+    allow_origins=["*"],  # Adjust for production
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Emotion labels
 EMOTION_LABELS = ["enojo", "asco", "miedo", "alegría", "neutral", "tristeza", "sorpresa"]
 
+# Initialize Hugging Face model for text generation
+pipe = pipeline("text-generation", model="tiiuae/falcon-7b-instruct", trust_remote_code=True)
+
+# Functions to calculate features from the drawing
 def calculate_stroke_thickness(image: np.ndarray) -> float:
     edges = cv2.Canny(image, 50, 150)
     dist_transform = cv2.distanceTransform(cv2.bitwise_not(edges), cv2.DIST_L2, 5)
@@ -125,10 +133,7 @@ async def analyze_drawing(file: UploadFile = File(...)):
         logging.exception("Unexpected error during analyze-drawing")
         raise HTTPException(status_code=500, detail="Internal error. Please try again later.")
 
-# 💡 Recomendación por IA vía Hugging Face
-HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
-HUGGINGFACE_MODEL = "tiiuae/falcon-7b-instruct"  # Puedes cambiarlo por otro compatible
-
+# Function to generate AI recommendation using Hugging Face model
 async def generate_ai_recommendation(dominant_emotion: str, emotions: Dict[str, float]) -> str:
     secondary = sorted(
         [(emo, val) for emo, val in emotions.items() if emo != dominant_emotion],
@@ -144,24 +149,11 @@ async def generate_ai_recommendation(dominant_emotion: str, emotions: Dict[str, 
         "¿Qué consejo emocional puedes dar basado en esto?"
     )
 
-    headers = {
-        "Authorization": f"Bearer {HUGGINGFACE_API_TOKEN}"
-    }
-
-    payload = {"inputs": prompt}
-
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}",
-                headers=headers,
-                json=payload
-            )
-            if response.status_code == 200:
-                result = response.json()
-                return result[0]["generated_text"] if isinstance(result, list) else result.get("generated_text", "")
-            else:
-                return "No se pudo generar una recomendación emocional en este momento."
+        # Use Hugging Face pipeline for text generation
+        response = pipe(prompt, max_length=100)
+        return response[0]["generated_text"]
+
     except Exception as e:
         logging.error(f"Error al obtener recomendación de IA: {str(e)}")
         return "No se pudo generar una recomendación emocional en este momento."
