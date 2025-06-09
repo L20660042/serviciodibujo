@@ -1,9 +1,5 @@
-fastapi
-uvicorn[standard]
-numpy
-opencv-python-headless
-python-multipart
-httpx
-python-dotenv
-transformers
-tensorflow  # Add this line for TensorFlow 2.0
+fastapi==0.68.2
+uvicorn==0.15.0
+transformers==4.14.1
+torch==1.9.1
+pillow==8.4.0

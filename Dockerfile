@@ -1,19 +1,17 @@
-# Use official Python slim image
-FROM python:3.10-slim
+# Dockerfile
+FROM python:3.9-slim
 
-# Set working directory
+# Crear un directorio de trabajo
 WORKDIR /app
 
-# Copy requirements and install
-COPY requirements.txt .
+# Copiar los archivos del proyecto al contenedor
+COPY . /app/
 
+# Instalar dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app source
-COPY drawing_emotion_service.py .
+# Exponer el puerto donde FastAPI escuchará
+EXPOSE 8000
 
-# Expose port
-EXPOSE 8001
-
-# Command to run the app with uvicorn
-CMD ["uvicorn", "drawing_emotion_service:app", "--host", "0.0.0.0", "--port", "8001"]
+# Comando para ejecutar el servicio con Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
