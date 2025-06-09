@@ -10,6 +10,8 @@ COPY . /app
 # Instalar las dependencias necesarias
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install numpy==1.21.6
+RUN pip install scikit-learn==1.0.2
 
 # Exponer el puerto
 EXPOSE 8000
