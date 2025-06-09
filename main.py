@@ -56,10 +56,10 @@ async def analyze_drawing(file: UploadFile = File(...)):
         with torch.no_grad():
             outputs = model(**inputs)
 
-        # Clonamos los logits antes de cualquier operación para evitar modificaciones inplace
-        logits = outputs.logits.detach().clone()  # Usamos detach() antes de clonar para evitar la conexión al grafo de cálculo
+        # Asegurarnos de que no haya actualizaciones in-place
+        logits = outputs.logits.detach().clone()  # Usamos detach() para evitar que el tensor esté conectado al grafo de cómputo
 
-        # Usamos .max() en lugar de argmax para evitar el error de inplace update
+        # No usamos .max() directamente, en su lugar usamos .max() sin modificar in-place
         predicted_class_idx = logits.max(dim=-1)[1].item()
 
         emotions = {model.config.id2label[predicted_class_idx]: logits[0][predicted_class_idx].item()}
