@@ -2,7 +2,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
-from transformers import pipeline
+import torch
+from transformers import pipeline, AutoImageProcessor, AutoModelForImageClassification
 
 app = FastAPI()
 
@@ -15,8 +16,10 @@ app.add_middleware(
     allow_headers=["*"],  # Permitir todas las cabeceras
 )
 
-# Usar el modelo ViT (Vision Transformer) para clasificación de imágenes
-emotion_model = pipeline('image-classification', model="google/vit-base-patch16-224-in21k")
+# Cargar el procesador y el modelo de Hugging Face para clasificación de imágenes
+model_name = "google/vit-base-patch16-224-in21k"
+processor = AutoImageProcessor.from_pretrained(model_name)
+model = AutoModelForImageClassification.from_pretrained(model_name)
 
 # Cargar el modelo de lenguaje de Hugging Face para generar recomendaciones
 language_model = pipeline('text-generation', model="gpt2")
@@ -43,14 +46,22 @@ async def analyze_drawing(file: UploadFile = File(...)):
         if file_size > MAX_IMAGE_SIZE:
             raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
 
-        # Convertir la imagen
+        # Convertir la imagen a formato compatible con el modelo
         image = Image.open(io.BytesIO(file_content))
 
-        # Procesar la imagen para detectar emociones usando el modelo ViT
-        result = emotion_model(image)
+        # Preprocesar la imagen
+        inputs = processor(images=image, return_tensors="pt", padding=True)
 
+        # Obtener las predicciones del modelo ViT
+        with torch.no_grad():
+            outputs = model(**inputs)
+        
         # Extraer las clases y sus puntuaciones
-        emotions = {emotion['label']: emotion['score'] for emotion in result}
+        logits = outputs.logits
+        predicted_class_idx = logits.argmax(-1).item()
+        emotions = {model.config.id2label[predicted_class_idx]: logits[0][predicted_class_idx].item()}
+
+        # Aquí puedes obtener la emoción dominante y otras recomendaciones
         dominant_emotion = max(emotions, key=emotions.get)
 
         # Generar una recomendación basada en la emoción dominante usando GPT-2
