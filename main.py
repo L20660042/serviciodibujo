@@ -57,7 +57,7 @@ async def analyze_drawing(file: UploadFile = File(...)):
             outputs = model(**inputs)
 
         # Clonamos los logits antes de cualquier operación para evitar modificaciones inplace
-        logits = outputs.logits.clone()  # Clonamos el tensor de logits para evitar modificaciones inplace
+        logits = outputs.logits.detach().clone()  # Usamos detach() antes de clonar para evitar la conexión al grafo de cálculo
 
         # Usamos .max() en lugar de argmax para evitar el error de inplace update
         predicted_class_idx = logits.max(dim=-1)[1].item()
