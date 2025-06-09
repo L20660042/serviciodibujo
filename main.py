@@ -56,8 +56,9 @@ async def analyze_drawing(file: UploadFile = File(...)):
         with torch.no_grad():
             outputs = model(**inputs)
 
-        # Extraer las clases y sus puntuaciones
-        logits = outputs.logits
+        # Para evitar la actualización inplace de tensores, usamos clone()
+        logits = outputs.logits.clone()  # Clonamos el tensor para evitar el error
+
         predicted_class_idx = logits.argmax(-1).item()
         emotions = {model.config.id2label[predicted_class_idx]: logits[0][predicted_class_idx].item()}
 
