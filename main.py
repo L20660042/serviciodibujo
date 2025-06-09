@@ -1,5 +1,4 @@
 import logging
-import time
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -60,10 +59,15 @@ async def analyze_drawing(file: UploadFile = File(...)):
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
 
+        # Log image size and format
+        logging.debug(f"Image size: {image.size}, Image format: {image.format}")
+
         # Analyze the image using the model
         analysis = drawing_analysis_model(image)
 
-        # Extract emotions and dominant emotion
+        # Log analysis result
+        logging.debug(f"Analysis result: {analysis}")
+
         emotions = analysis[0]["label"]
         dominant_emotion = emotions[0]
         emotional_advice = generate_advice(dominant_emotion)
@@ -76,4 +80,5 @@ async def analyze_drawing(file: UploadFile = File(...)):
         )
     
     except Exception as e:
+        logging.error(f"Error during image processing: {e}")
         return {"error": str(e)}
