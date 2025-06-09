@@ -59,24 +59,31 @@ async def analyze_drawing(file: UploadFile = File(...)):
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
 
+        # Log image size and format for debugging
+        logging.debug(f"Image size: {image.size}, Image format: {image.format}")
+
         # Analyze the image using the model
         analysis = drawing_analysis_model(image)
 
-        # Log the analysis result for debugging
+        # Log the analysis result to check its structure
         logging.debug(f"Analysis result: {analysis}")
 
-        # Assuming the model returns a list of labels, you need to structure it into a dictionary
-        emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
-        dominant_emotion = analysis[0]["label"]  # The label with the highest score
-        emotional_advice = generate_advice(dominant_emotion)
+        # Check if the model output is in the expected format
+        if isinstance(analysis, list) and len(analysis) > 0:
+            emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
+            dominant_emotion = analysis[0]["label"]
+            emotional_advice = generate_advice(dominant_emotion)
 
-        # Return the response
-        return EmotionAnalysisResponse(
-            emotions=emotions,
-            dominant_emotion=dominant_emotion,
-            emotional_advice=emotional_advice
-        )
-    
+            # Return the response
+            return EmotionAnalysisResponse(
+                emotions=emotions,
+                dominant_emotion=dominant_emotion,
+                emotional_advice=emotional_advice
+            )
+        else:
+            logging.error("Unexpected analysis output format.")
+            return {"error": "Unexpected analysis output format."}
+
     except Exception as e:
         logging.error(f"Error during image processing: {e}")
         return {"error": str(e)}
