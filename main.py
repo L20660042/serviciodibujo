@@ -7,10 +7,10 @@ from transformers import pipeline
 import io
 from PIL import Image
 
-# Initializing FastAPI
+# Initialize FastAPI
 app = FastAPI()
 
-# CORS configuration
+# Add CORS middleware to allow cross-origin requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins
@@ -19,10 +19,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Initialize the emotion recognition pipeline
-emotion_recognition_pipeline = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
-
-# Use a valid model identifier for image classification
+# Initialize the image classification model
 drawing_analysis_model = pipeline("image-classification", model="google/vit-base-patch16-224-in21k")
 
 # Model for analysis response
@@ -58,17 +55,25 @@ def generate_advice(dominant_emotion: str) -> str:
 # Endpoint to analyze images (drawings)
 @app.post("/analyze-drawing", response_model=EmotionAnalysisResponse)
 async def analyze_drawing(file: UploadFile = File(...)):
-    # Read the image
-    image_data = await file.read()
-    image = Image.open(io.BytesIO(image_data))
+    try:
+        # Read the image from the uploaded file
+        image_data = await file.read()
+        image = Image.open(io.BytesIO(image_data))
 
-    # Analyze the image using the model
-    analysis = drawing_analysis_model(image)
+        # Analyze the image using the model
+        analysis = drawing_analysis_model(image)
 
-    # Extract emotions and dominant emotion
-    emotions = analysis[0]["label"]  # Extracting the classification result (labels)
-    dominant_emotion = emotions[0]  # Dominant emotion
-    emotional_advice = generate_advice(dominant_emotion)  # Generate emotional advice
+        # Extract emotions and dominant emotion
+        emotions = analysis[0]["label"]
+        dominant_emotion = emotions[0]
+        emotional_advice = generate_advice(dominant_emotion)
 
-    # Return the response
-    return EmotionAnalysisResponse(emotions=emotions, dominant_emotion=dominant_emotion, emotional_advice=emotional_advice)
+        # Return the response
+        return EmotionAnalysisResponse(
+            emotions=emotions,
+            dominant_emotion=dominant_emotion,
+            emotional_advice=emotional_advice
+        )
+    
+    except Exception as e:
+        return {"error": str(e)}
