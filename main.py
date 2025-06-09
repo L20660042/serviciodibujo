@@ -15,11 +15,15 @@ app.add_middleware(
     allow_headers=["*"],  # Permitir todas las cabeceras
 )
 
-# Cargar los modelos de Hugging Face una vez para evitar cargar en cada solicitud
+# Usar el modelo ViT (Vision Transformer) para clasificación de imágenes
 emotion_model = pipeline('image-classification', model="google/vit-base-patch16-224-in21k")
+
+# Cargar el modelo de lenguaje de Hugging Face para generar recomendaciones
 language_model = pipeline('text-generation', model="gpt2")
 
-# Rutas
+# Limitar el tamaño máximo del archivo (3 MB)
+MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
+
 @app.get("/")
 async def root():
     return {"message": "Drawing Emotion Analysis Service alive"}
@@ -28,22 +32,17 @@ async def root():
 async def health_check():
     return {"model_loaded": True}
 
-MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
-
 @app.post("/analyze-drawing")
 async def analyze_drawing(file: UploadFile = File(...)):
     try:
-        # Leer el contenido del archivo (esto también permite calcular el tamaño)
+        # Leer el archivo de imagen
         file_content = await file.read()
-
-        # Obtener el tamaño del archivo
         file_size = len(file_content)
 
-        # Limitar el tamaño máximo del archivo
-        MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
+        # Verificar el tamaño del archivo
         if file_size > MAX_IMAGE_SIZE:
             raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
-        
+
         # Convertir la imagen
         image = Image.open(io.BytesIO(file_content))
 
@@ -68,6 +67,7 @@ async def analyze_drawing(file: UploadFile = File(...)):
                 "emotional_advice": emotional_advice,
             }
         }
-    
+
     except Exception as e:
+        # Manejo de excepciones con un mensaje más detallado
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
