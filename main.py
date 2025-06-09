@@ -52,14 +52,14 @@ async def analyze_drawing(file: UploadFile = File(...)):
         # Preprocesar la imagen
         inputs = extractor(images=image, return_tensors="pt", padding=True)
 
-        # Realizar la inferencia con ViT
+        # Realizar la inferencia con ViT (asegurándonos de no hacer modificaciones inplace)
         with torch.no_grad():
             outputs = model(**inputs)
 
-        # Para evitar la actualización inplace de tensores, usamos clone()
-        logits = outputs.logits.clone()  # Clonamos el tensor para evitar el error
-
+        # Clonar los logits antes de cualquier operación
+        logits = outputs.logits.clone()  # Clonamos el tensor de logits para evitar modificaciones inplace
         predicted_class_idx = logits.argmax(-1).item()
+
         emotions = {model.config.id2label[predicted_class_idx]: logits[0][predicted_class_idx].item()}
 
         # Aquí puedes obtener la emoción dominante y otras recomendaciones
