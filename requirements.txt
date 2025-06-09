@@ -5,4 +5,5 @@ opencv-python-headless
 python-multipart
 httpx
 python-dotenv
-transformers 
+transformers
+tensorflow  # Add this line for TensorFlow 2.0
