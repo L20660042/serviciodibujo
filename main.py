@@ -2,9 +2,14 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
+import logging
 from transformers import pipeline, ViTFeatureExtractor, ViTForImageClassification
 import torch
 
+# Configuración de logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Crear la aplicación FastAPI
 app = FastAPI()
 
 # Habilitar CORS para permitir solicitudes desde otros dominios
@@ -42,15 +47,20 @@ async def analyze_drawing(file: UploadFile = File(...)):
         file_content = await file.read()
         file_size = len(file_content)
 
+        # Log el tamaño del archivo
+        logging.debug(f"File size: {file_size} bytes")
+
         # Verificar el tamaño del archivo
         if file_size > MAX_IMAGE_SIZE:
             raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
-
-        # Convertir la imagen a formato compatible con el modelo
+        
+        # Convertir la imagen
         image = Image.open(io.BytesIO(file_content))
+        logging.debug("Image opened successfully.")
 
         # Preprocesar la imagen
         inputs = extractor(images=image, return_tensors="pt", padding=True)
+        logging.debug("Image preprocessed successfully.")
 
         # Realizar la inferencia con ViT (asegurándonos de no hacer modificaciones inplace)
         with torch.no_grad():
@@ -83,5 +93,5 @@ async def analyze_drawing(file: UploadFile = File(...)):
         }
 
     except Exception as e:
-        # Manejo de excepciones con un mensaje más detallado
+        logging.error(f"Error during image processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
