@@ -1,97 +1,74 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from PIL import Image
-import io
 import logging
-from transformers import pipeline, ViTFeatureExtractor, ViTForImageClassification
-import torch
+import time
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from transformers import pipeline
+import io
+from PIL import Image
 
-# Configuración de logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Crear la aplicación FastAPI
+# Inicialización de FastAPI
 app = FastAPI()
 
-# Habilitar CORS para permitir solicitudes desde otros dominios
+# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permitir todas las URLs, puedes cambiar "*" por un dominio específico si prefieres más restricción
+    allow_origins=["*"],  # Permitir todos los orígenes
     allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos los métodos HTTP (GET, POST, etc.)
-    allow_headers=["*"],  # Permitir todas las cabeceras
+    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
 )
 
-# Cargar el modelo ViT (Vision Transformer) y su extractor de características
-model_name = "google/vit-base-patch16-224-in21k"
-extractor = ViTFeatureExtractor.from_pretrained(model_name)
-model = ViTForImageClassification.from_pretrained(model_name)
+# Inicialización del pipeline para análisis de emociones
+emotion_recognition_pipeline = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
 
-# Cargar el modelo de lenguaje de Hugging Face para generar recomendaciones
-language_model = pipeline('text-generation', model="gpt2")
+# Modelos para el análisis de dibujo
+drawing_analysis_model = pipeline("image-classification", model="your-drawing-model")
 
-# Limitar el tamaño máximo del archivo (3 MB)
-MAX_IMAGE_SIZE = 3 * 1024 * 1024  # 3 MB
+# Define el modelo para respuestas del análisis
+class EmotionAnalysisResponse(BaseModel):
+    emotions: dict
+    dominant_emotion: str
+    emotional_advice: str
 
-@app.get("/")
-async def root():
-    return {"message": "Drawing Emotion Analysis Service alive"}
-
+# Endpoint para verificar que el servicio está activo
 @app.get("/health")
-async def health_check():
+async def health():
     return {"model_loaded": True}
 
-@app.post("/analyze-drawing")
+# Función para generar el consejo emocional
+def generate_advice(dominant_emotion: str) -> str:
+    advice = ""
+    if dominant_emotion == "enojo":
+        advice = "Mediante los trazos y el grosor se detecta que estás enojado, deberías salir a distraerte y relajarte."
+    elif dominant_emotion == "alegría":
+        advice = "Parece que estás muy feliz. ¡Disfruta el momento y comparte esa felicidad con otros!"
+    elif dominant_emotion == "tristeza":
+        advice = "Se percibe tristeza en tus trazos. Podrías intentar hablar con un amigo o hacer algo que te guste."
+    elif dominant_emotion == "miedo":
+        advice = "Los trazos indican que te sientes temeroso. Trata de hablar sobre lo que te preocupa y enfrenta tus miedos."
+    elif dominant_emotion == "asco":
+        advice = "Se nota que algo te causa desagrado. Podrías intentar relajarte y reflexionar sobre lo que te hace sentir incómodo."
+    elif dominant_emotion == "neutral":
+        advice = "Tu dibujo no muestra emociones fuertes. Tal vez estés en un estado equilibrado, pero no dudes en descansar."
+    elif dominant_emotion == "sorpresa":
+        advice = "Parece que algo te sorprendió. ¡Tómate un tiempo para procesar lo que ocurrió!"
+    return advice
+
+# Endpoint para analizar imágenes (dibujos)
+@app.post("/analyze-drawing", response_model=EmotionAnalysisResponse)
 async def analyze_drawing(file: UploadFile = File(...)):
-    try:
-        # Leer el archivo de imagen
-        file_content = await file.read()
-        file_size = len(file_content)
-
-        # Log el tamaño del archivo
-        logging.debug(f"File size: {file_size} bytes")
-
-        # Verificar el tamaño del archivo
-        if file_size > MAX_IMAGE_SIZE:
-            raise HTTPException(status_code=400, detail="El archivo es demasiado grande. El tamaño máximo es 3MB.")
-        
-        # Convertir la imagen
-        image = Image.open(io.BytesIO(file_content))
-        logging.debug("Image opened successfully.")
-
-        # Preprocesar la imagen
-        inputs = extractor(images=image, return_tensors="pt", padding=True)
-        logging.debug("Image preprocessed successfully.")
-
-        # Realizar la inferencia con ViT (asegurándonos de no hacer modificaciones inplace)
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        # **Importante**: Aseguramos que no haya modificaciones inplace
-        logits = outputs.logits.detach().clone()  # Desvinculamos y clonamos el tensor de logits
-
-        # Usamos .max() en lugar de argmax para evitar el error de inplace update
-        predicted_class_idx = logits.max(dim=-1)[1].item()  # Utilizamos [1] para obtener los índices
-
-        emotions = {model.config.id2label[predicted_class_idx]: logits[0][predicted_class_idx].item()}
-
-        # Aquí puedes obtener la emoción dominante y otras recomendaciones
-        dominant_emotion = max(emotions, key=emotions.get)
-
-        # Generar una recomendación basada en la emoción dominante usando GPT-2
-        recommendation_input = f"Recomendación para alguien que se siente {dominant_emotion}:"
-        recommendation = language_model(recommendation_input, max_length=50, num_return_sequences=1)[0]['generated_text']
-
-        # Crear el consejo emocional basado en la emoción detectada
-        emotional_advice = f"Basado en tus trazos, parece que estás {dominant_emotion}. {recommendation}"
-
-        return {
-            "data": {
-                "emotions": emotions,
-                "dominant_emotion": dominant_emotion,
-                "emotional_advice": emotional_advice,
-            }
-        }
-
-    except Exception as e:
-        logging.error(f"Error during image processing: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
+    # Leer la imagen
+    image_data = await file.read()
+    image = Image.open(io.BytesIO(image_data))
+    
+    # Convertir la imagen a un formato adecuado para el análisis
+    analysis = drawing_analysis_model(image)
+    
+    # Aquí se obtienen las emociones a partir del análisis
+    emotions = analysis['labels']  # Dependiendo de la estructura de la salida
+    dominant_emotion = emotions[0]  # Emoción dominante
+    emotional_advice = generate_advice(dominant_emotion)  # Generar consejo emocional
+    
+    # Formatear la respuesta
+    return EmotionAnalysisResponse(emotions=emotions, dominant_emotion=dominant_emotion, emotional_advice=emotional_advice)

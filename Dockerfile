@@ -1,17 +1,18 @@
-# Dockerfile
+# Usar una imagen base de Python
 FROM python:3.9-slim
 
-# Crear un directorio de trabajo en el contenedor
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar todos los archivos del proyecto al contenedor
-COPY . /app/
+# Copiar los archivos del servicio al contenedor
+COPY . /app
 
-# Instalar las dependencias del proyecto
+# Instalar las dependencias necesarias
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Exponer el puerto donde FastAPI escuchará
+# Exponer el puerto
 EXPOSE 8000
 
-# Comando para ejecutar el servicio con Uvicorn
+# Comando para correr el servidor
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
