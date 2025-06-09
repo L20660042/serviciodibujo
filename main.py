@@ -5,8 +5,8 @@ from transformers import pipeline
 
 app = FastAPI()
 
-# Cargar el modelo de Hugging Face para análisis de emociones en dibujos
-emotion_model = pipeline('image-classification', model="huggingface/emotion-recognition-model")
+# Usar el modelo ViT (Vision Transformer) para clasificación de imágenes
+emotion_model = pipeline('image-classification', model="google/vit-base-patch16-224-in21k")
 
 # Cargar el modelo de lenguaje de Hugging Face para generar recomendaciones
 language_model = pipeline('text-generation', model="gpt2")
@@ -25,10 +25,10 @@ async def analyze_drawing(file: UploadFile = File(...)):
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes))
 
-    # Procesar la imagen para detectar emociones
+    # Procesar la imagen para detectar emociones usando el modelo ViT
     result = emotion_model(image)
 
-    # Extraer emociones detectadas
+    # Extraer las clases y sus puntuaciones
     emotions = {emotion['label']: emotion['score'] for emotion in result}
     dominant_emotion = max(emotions, key=emotions.get)
 

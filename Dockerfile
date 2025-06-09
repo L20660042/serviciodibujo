@@ -1,13 +1,13 @@
 # Dockerfile
 FROM python:3.9-slim
 
-# Crear un directorio de trabajo
+# Crear un directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Copiar los archivos del proyecto al contenedor
+# Copiar todos los archivos del proyecto al contenedor
 COPY . /app/
 
-# Instalar dependencias
+# Instalar las dependencias del proyecto
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Exponer el puerto donde FastAPI escuchará
