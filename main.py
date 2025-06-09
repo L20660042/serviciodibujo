@@ -2,8 +2,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
+from transformers import pipeline, ViTFeatureExtractor, ViTForImageClassification
 import torch
-from transformers import pipeline, AutoImageProcessor, AutoModelForImageClassification
 
 app = FastAPI()
 
@@ -16,10 +16,10 @@ app.add_middleware(
     allow_headers=["*"],  # Permitir todas las cabeceras
 )
 
-# Cargar el procesador y el modelo de Hugging Face para clasificación de imágenes
+# Cargar el modelo ViT (Vision Transformer) y su extractor de características
 model_name = "google/vit-base-patch16-224-in21k"
-processor = AutoImageProcessor.from_pretrained(model_name)
-model = AutoModelForImageClassification.from_pretrained(model_name)
+extractor = ViTFeatureExtractor.from_pretrained(model_name)
+model = ViTForImageClassification.from_pretrained(model_name)
 
 # Cargar el modelo de lenguaje de Hugging Face para generar recomendaciones
 language_model = pipeline('text-generation', model="gpt2")
@@ -50,12 +50,12 @@ async def analyze_drawing(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(file_content))
 
         # Preprocesar la imagen
-        inputs = processor(images=image, return_tensors="pt", padding=True)
+        inputs = extractor(images=image, return_tensors="pt", padding=True)
 
-        # Obtener las predicciones del modelo ViT
+        # Realizar la inferencia con ViT
         with torch.no_grad():
             outputs = model(**inputs)
-        
+
         # Extraer las clases y sus puntuaciones
         logits = outputs.logits
         predicted_class_idx = logits.argmax(-1).item()

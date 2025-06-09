@@ -1,7 +1,7 @@
 fastapi==0.68.2
 uvicorn==0.15.0
-transformers==4.14.1 
-torch==1.9.1 
+transformers==4.14.1
+torch==1.9.1  # O la versión adecuada para tu entorno (CPU o GPU)
 pillow==8.4.0
 python-multipart==0.0.5
-numpy==1.20.3  
+numpy==1.20.3  # Versión compatible con PyTorch
