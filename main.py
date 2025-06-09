@@ -65,11 +65,12 @@ async def analyze_drawing(file: UploadFile = File(...)):
         # Analyze the image using the model
         analysis = drawing_analysis_model(image)
 
-        # Log the analysis result to check its structure
-        logging.debug(f"Analysis result: {analysis}")
+        # Log the model's output to inspect its structure
+        logging.debug(f"Model analysis output: {analysis}")
 
-        # Check if the model output is in the expected format
+        # Check if analysis is in the expected format
         if isinstance(analysis, list) and len(analysis) > 0:
+            # Assuming the analysis returns a list of dictionaries with 'label' and 'score'
             emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
             dominant_emotion = analysis[0]["label"]
             emotional_advice = generate_advice(dominant_emotion)
