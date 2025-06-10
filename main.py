@@ -70,17 +70,21 @@ async def analyze_drawing(file: UploadFile = File(...)):
 
         # Check if analysis is in the expected format
         if isinstance(analysis, list) and len(analysis) > 0:
-            # Assuming the analysis returns a list of dictionaries with 'label' and 'score'
-            emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
-            dominant_emotion = analysis[0]["label"]
-            emotional_advice = generate_advice(dominant_emotion)
+            # Check if the returned structure has 'label' and 'score'
+            if "label" in analysis[0] and "score" in analysis[0]:
+                emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
+                dominant_emotion = analysis[0]["label"]
+                emotional_advice = generate_advice(dominant_emotion)
 
-            # Return the response
-            return EmotionAnalysisResponse(
-                emotions=emotions,
-                dominant_emotion=dominant_emotion,
-                emotional_advice=emotional_advice
-            )
+                # Return the response
+                return EmotionAnalysisResponse(
+                    emotions=emotions,
+                    dominant_emotion=dominant_emotion,
+                    emotional_advice=emotional_advice
+                )
+            else:
+                logging.error("Model returned an unexpected structure.")
+                return {"error": "Unexpected structure in model response."}
         else:
             logging.error("Unexpected analysis output format.")
             return {"error": "Unexpected analysis output format."}
