@@ -23,6 +23,15 @@ drawing_analysis_model = pipeline("image-classification", model="google/vit-base
 
 # Emotion labels for mapping
 emotion_labels = ["enojo", "asco", "miedo", "alegría", "neutral", "tristeza", "sorpresa"]
+emotion_icons = {
+    "enojo": "😠",
+    "asco": "🤢",
+    "miedo": "😨",
+    "alegría": "😄",
+    "neutral": "😐",
+    "tristeza": "😢",
+    "sorpresa": "😮"
+}
 
 # Model for analysis response
 class EmotionAnalysisResponse(BaseModel):
@@ -73,23 +82,36 @@ async def analyze_drawing(file: UploadFile = File(...)):
 
         # Check if analysis is in the expected format
         if isinstance(analysis, list) and len(analysis) > 0:
-            # Check if the returned structure has 'label' and 'score'
-            if "label" in analysis[0] and "score" in analysis[0]:
-                # Map the label to the corresponding emotion
-                label_index = int(analysis[0]["label"].replace('LABEL_', ''))  # Convert 'LABEL_0' -> 0
-                dominant_emotion = emotion_labels[label_index]  # Get the dominant emotion from the label index
-                emotions = {emotion_labels[label_index]: analysis[0]["score"]}  # Map label to its confidence score
-                emotional_advice = generate_advice(dominant_emotion)
+            emotions = {}
+            dominant_emotion = None
+            highest_score = 0
 
-                # Return the response
-                return EmotionAnalysisResponse(
-                    emotions=emotions,
-                    dominant_emotion=dominant_emotion,
-                    emotional_advice=emotional_advice
-                )
-            else:
-                logging.error("Model returned an unexpected structure.")
-                return {"error": "Unexpected structure in model response."}
+            # Loop through all labels and capture emotions with their scores
+            for result in analysis:
+                label = result.get('label', '')
+                score = result.get('score', 0)
+                if label and score > 0.1:  # Only consider scores above 0.1
+                    # Map label index to emotion
+                    label_index = int(label.replace('LABEL_', ''))  # Convert 'LABEL_0' -> 0
+                    emotion = emotion_labels[label_index]
+                    emotions[emotion] = score
+                    if score > highest_score:
+                        dominant_emotion = emotion
+                        highest_score = score
+
+            # Sort emotions based on their score (highest to lowest)
+            sorted_emotions = dict(sorted(emotions.items(), key=lambda item: item[1], reverse=True))
+
+            # Generate emotional advice for the dominant emotion
+            emotional_advice = generate_advice(dominant_emotion)
+
+            # Return the response
+            return EmotionAnalysisResponse(
+                emotions=sorted_emotions,
+                dominant_emotion=dominant_emotion,
+                emotional_advice=emotional_advice
+            )
+
         else:
             logging.error("Unexpected analysis output format.")
             return {"error": "Unexpected analysis output format."}
