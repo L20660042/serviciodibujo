@@ -21,6 +21,9 @@ app.add_middleware(
 # Initialize the image classification model
 drawing_analysis_model = pipeline("image-classification", model="google/vit-base-patch16-224-in21k")
 
+# Emotion labels for mapping
+emotion_labels = ["enojo", "asco", "miedo", "alegría", "neutral", "tristeza", "sorpresa"]
+
 # Model for analysis response
 class EmotionAnalysisResponse(BaseModel):
     emotions: dict  # Expecting a dictionary for emotions
@@ -72,8 +75,10 @@ async def analyze_drawing(file: UploadFile = File(...)):
         if isinstance(analysis, list) and len(analysis) > 0:
             # Check if the returned structure has 'label' and 'score'
             if "label" in analysis[0] and "score" in analysis[0]:
-                emotions = {analysis[0]["label"]: analysis[0]["score"]}  # Map label to its confidence score
-                dominant_emotion = analysis[0]["label"]
+                # Map the label to the corresponding emotion
+                label_index = int(analysis[0]["label"].replace('LABEL_', ''))  # Convert 'LABEL_0' -> 0
+                dominant_emotion = emotion_labels[label_index]  # Get the dominant emotion from the label index
+                emotions = {emotion_labels[label_index]: analysis[0]["score"]}  # Map label to its confidence score
                 emotional_advice = generate_advice(dominant_emotion)
 
                 # Return the response
